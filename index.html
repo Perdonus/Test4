@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Капча-Безумие</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #1a1a1a, #2e2e2e);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 600px;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid #00ff00;
+            border-radius: 15px;
+            box-shadow: 0 0 20px #00ff00, inset 0 0 10px #ff00ff;
+            text-align: center;
+            color: #fff;
+            animation: glow 2s infinite alternate;
+        }
+        @keyframes glow {
+            from { box-shadow: 0 0 20px #00ff00, inset 0 0 10px #ff00ff; }
+            to { box-shadow: 0 0 30px #ff00ff, inset 0 0 15px #00ff00; }
+        }
+        #captcha-canvas {
+            width: 400px;
+            height: 150px;
+            border: 2px dashed #ff00ff;
+            background: #111;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+        }
+        #captcha-input {
+            width: 80%;
+            padding: 15px;
+            font-size: 18px;
+            background: #222;
+            border: 2px solid #00ff00;
+            color: #fff;
+            border-radius: 5px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        #captcha-input:focus {
+            border-color: #ff00ff;
+            box-shadow: 0 0 10px #ff00ff;
+        }
+        #submit-btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #submit-btn:hover {
+            transform: scale(1.1);
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 20px;
+            color: #ff00ff;
+            text-shadow: 0 0 5px #ff00ff;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            font-size: 24px;
+            color: #00ff00;
+        }
+        #level {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 24px;
+            color: #ff00ff;
+        }
+        .particles {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: #fff;
+            border-radius: 50%;
+            animation: float 5s infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100vh); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Очки: 0</div>
+        <div id="level">Уровень: 1</div>
+        <h1>Капча-Безумие</h1>
+        <canvas id="captcha-canvas" width="400" height="150"></canvas>
+        <input type="text" id="captcha-input" placeholder="Введи или сгинь!">
+        <button id="submit-btn">Проверить, слабак!</button>
+        <div id="message"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('captcha-canvas');
+            if (!canvas) {
+                console.error('Canvas не найден!');
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Не удалось получить 2D контекст!');
+                return;
+            }
+            
+            const input = document.getElementById('captcha-input');
+            const submitBtn = document.getElementById('submit-btn');
+            const message = document.getElementById('message');
+            const scoreDisplay = document.getElementById('score');
+            const levelDisplay = document.getElementById('level');
+
+            let captchaText = '';
+            let level = 1;
+            let score = 0;
+            let attempts = 0;
+            const trollMessages = [
+                "Ты серьёзно? Это было слишком просто!",
+                "Да ты слепой что ли? Попробуй ещё раз!",
+                "Мда, уровень интеллекта: табуретка!",
+                "Это было так легко, а ты всё равно облажался!",
+                "Твоя мама лучше справится, чем ты!"
+            ];
+
+            function generateCaptcha() {
+                const chars = 'ABCDEF123456789!@#$%^&*';
+                captchaText = '';
+                const length = 5 + Math.floor(level / 2);
+                for (let i = 0; i < length; i++) {
+                    captchaText += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                drawCaptcha();
+            }
+
+            function drawCaptcha() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#111';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Шум
+                for (let i = 0; i < 100 + level * 10; i++) {
+                    ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2 + level / 5, 2 + level / 5);
+                }
+
+                // Текст с искажениями
+                ctx.font = `${20 + level * 2}px Courier New`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (let i = 0; i < captchaText.length; i++) {
+                    ctx.save();
+                    let x = (i + 1) * (canvas.width / (captchaText.length + 1));
+                    let y = canvas.height / 2 + Math.random() * 20 - 10;
+                    ctx.translate(x, y);
+                    ctx.rotate(Math.random() * 0.5 - 0.25);
+                    ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                    ctx.fillText(captchaText[i], 0, 0);
+                    ctx.restore();
+                }
+
+                // Рандомные линии
+                for (let i = 0; i < 3 + level; i++) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                    ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                    ctx.stroke();
+                }
+            }
+
+            function checkCaptcha() {
+                attempts++;
+                if (input.value === captchaText) {
+                    score += 10 + level * 5;
+                    message.textContent = `Ого, ты прошёл! Но это было случайно, да?`;
+                    level = Math.min(level + 1, 20);
+                    updateStats();
+                    setTimeout(nextLevel, 1500);
+                } else {
+                    message.textContent = trollMessages[Math.floor(Math.random() * trollMessages.length)];
+                    score = Math.max(0, score - 5);
+                    updateStats();
+                    if (Math.random() < 0.3) {
+                        trollEffect();
+                    }
+                    setTimeout(() => message.textContent = '', 2000);
+                }
+                input.value = '';
+            }
+
+            function updateStats() {
+                scoreDisplay.textContent = `Очки: ${score}`;
+                levelDisplay.textContent = `Уровень: ${level}`;
+            }
+
+            function nextLevel() {
+                message.textContent = '';
+                generateCaptcha();
+                spawnParticles();
+            }
+
+            function trollEffect() {
+                submitBtn.textContent = "Ты всё равно проиграешь!";
+                setTimeout(() => submitBtn.textContent = "Проверить, слабак!", 1000);
+                document.body.style.background = `linear-gradient(45deg, #ff0000, #0000ff)`;
+                setTimeout(() => document.body.style.background = `linear-gradient(45deg, #1a1a1a, #2e2e2e)`, 500);
+            }
+
+            function spawnParticles() {
+                for (let i = 0; i < 10; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particles';
+                    particle.style.left = `${Math.random() * 100}%`;
+                    particle.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    document.body.appendChild(particle);
+                    setTimeout(() => particle.remove(), 5000);
+                }
+            }
+
+            // Инициализация событий
+            submitBtn.addEventListener('click', checkCaptcha);
+            input.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') checkCaptcha();
+            });
+
+            // Старт игры
+            generateCaptcha();
+        });
+    </script>
+</body>
+</html>
